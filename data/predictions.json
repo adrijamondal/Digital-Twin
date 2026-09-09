@@ -1,0 +1,43 @@
+{
+  "timestamp": 1788935572.250943,
+  "sample_count": 200,
+  "collecting": false,
+  "cpu": 8.6,
+  "memory": 60.9,
+  "cpu_usage": 8.6,
+  "memory_usage": 60.9,
+  "disk_read": 4942.97,
+  "disk_write": 2762.01,
+  "network_in": 249.74,
+  "network_out": 7.96,
+  "cpu_pred_10s": 9.85,
+  "cpu_pred_30s": 4.28,
+  "cpu_pred_60s": 0.0,
+  "memory_pred": 60.97,
+  "anomaly": false,
+  "anomaly_status": "NORMAL",
+  "anomaly_reason": "All live metrics are within the rolling baseline",
+  "anomaly_score": -0.46862,
+  "confidence": 0.82,
+  "anomalous_metrics": [],
+  "per_metric_scores": {
+    "cpu_usage": 0.984,
+    "memory_usage": 0.336,
+    "disk_read": 1.087,
+    "disk_write": 0.214,
+    "network_in": 0.229,
+    "network_out": 0.406
+  },
+  "per_metric_statuses": {
+    "CPU Usage": "OK",
+    "Memory": "OK",
+    "Disk Read": "OK",
+    "Disk Write": "OK",
+    "Net In": "OK",
+    "Net Out": "OK"
+  },
+  "failure_risk": 0.0139,
+  "failure_risk_percent": 1.39,
+  "health_score": 97.94,
+  "health_status": "Healthy"
+}

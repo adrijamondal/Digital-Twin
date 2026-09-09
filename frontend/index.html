@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Twin - OS Monitor</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>Digital Twin - OS Monitor</h1>
+  <div class="header-right">
+    <span id="status-dot"></span>
+    <span id="status-label">CONNECTING</span>
+    <span id="last-update">Waiting for live telemetry</span>
+  </div>
+</header>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="dashboard">
+    <span class="tab-icon">[+]</span> Dashboard
+  </button>
+  <button class="tab-btn" data-tab="ml">
+    <span class="tab-icon">[*]</span> ML Algorithms
+  </button>
+</nav>
+
+<main id="tab-dashboard" class="tab-panel active">
+  <div id="anomaly-banner">
+    <span>!</span>
+    <span id="anomaly-reason">ANOMALY DETECTED</span>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">CPU Usage</div>
+      <div class="kpi-value" id="kpi-cpu">--</div>
+      <div class="kpi-sub">live device data</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Memory</div>
+      <div class="kpi-value" id="kpi-mem">--</div>
+      <div class="kpi-sub">live device data</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Disk Read</div>
+      <div class="kpi-value" id="kpi-dread">--</div>
+      <div class="kpi-sub">KB/s</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Disk Write</div>
+      <div class="kpi-value" id="kpi-dwrite">--</div>
+      <div class="kpi-sub">KB/s</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Net In</div>
+      <div class="kpi-value" id="kpi-netin">--</div>
+      <div class="kpi-sub">KB/s</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Net Out</div>
+      <div class="kpi-value" id="kpi-netout">--</div>
+      <div class="kpi-sub">KB/s</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>CPU Usage - 60s History</h3>
+      <canvas id="chart-cpu"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Memory Usage - 60s History</h3>
+      <canvas id="chart-mem"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Disk I/O - KB/s</h3>
+      <canvas id="chart-disk"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Network I/O - KB/s</h3>
+      <canvas id="chart-net"></canvas>
+    </div>
+  </div>
+
+  <div class="pred-row">
+    <div class="pred-card">
+      <div class="pred-label">CPU Prediction +10s</div>
+      <div class="pred-value" id="pred-10s">--</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-label">CPU Prediction +30s</div>
+      <div class="pred-value" id="pred-30s">--</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-label">CPU Prediction +60s</div>
+      <div class="pred-value" id="pred-60s">--</div>
+    </div>
+  </div>
+
+  <div class="health-row">
+    <div class="meter-card">
+      <h3>System Health Score</h3>
+      <div class="meter-bar-bg">
+        <div class="meter-bar health" id="bar-health" style="width:100%"></div>
+      </div>
+      <div class="meter-labels">
+        <span>0</span>
+        <span class="meter-pct" id="lbl-health">100</span>
+        <span>100</span>
+      </div>
+    </div>
+    <div class="meter-card">
+      <h3>Failure Risk</h3>
+      <div class="meter-bar-bg">
+        <div class="meter-bar risk" id="bar-risk" style="width:0%"></div>
+      </div>
+      <div class="meter-labels">
+        <span>0%</span>
+        <span class="meter-pct" id="lbl-risk">0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="proc-card">
+    <div class="proc-header">
+      <h3>Live Process Monitor</h3>
+      <span class="proc-badge" id="proc-count">--</span>
+    </div>
+    <div class="proc-table-wrap">
+      <table class="proc-table">
+        <thead>
+          <tr>
+            <th>PID</th><th>Name</th><th>CPU %</th>
+            <th>Mem %</th><th>Status</th><th>User</th>
+          </tr>
+        </thead>
+        <tbody id="proc-body">
+          <tr><td colspan="6">Waiting for processes...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="log-card">
+    <h3>Event Log</h3>
+    <ul id="log-list"></ul>
+  </div>
+</main>
+
+<main id="tab-ml" class="tab-panel">
+  <div class="ml-hero">
+    <div class="ml-hero-text">
+      <h2>Machine Learning Pipeline</h2>
+      <p>
+        Flask collects live psutil telemetry every second, writes the latest 2000
+        samples to data/telemetry.csv, and updates the ML outputs from the rolling
+        live window.
+      </p>
+    </div>
+    <div class="ml-pipeline-flow">
+      <span class="pipe-node src">psutil live sample</span>
+      <span class="pipe-arrow">-&gt;</span>
+      <span class="pipe-node flask">Flask ML Thread</span>
+      <span class="pipe-arrow">-&gt;</span>
+      <span class="pipe-node out">live predictions</span>
+    </div>
+  </div>
+
+  <div class="ml-live-strip">
+    <div class="ml-live-item">
+      <div class="ml-live-label">Anomaly Status</div>
+      <div class="ml-live-val" id="ml-anomaly-status">--</div>
+    </div>
+    <div class="ml-live-item">
+      <div class="ml-live-label">Anomaly Reason</div>
+      <div class="ml-live-val small" id="ml-anomaly-reason">--</div>
+    </div>
+    <div class="ml-live-item">
+      <div class="ml-live-label">CPU +10s</div>
+      <div class="ml-live-val" id="ml-pred-10">--</div>
+    </div>
+    <div class="ml-live-item">
+      <div class="ml-live-label">Failure Risk</div>
+      <div class="ml-live-val" id="ml-risk">--</div>
+    </div>
+    <div class="ml-live-item">
+      <div class="ml-live-label">Health Score</div>
+      <div class="ml-live-val" id="ml-health">--</div>
+    </div>
+  </div>
+
+  <div class="algo-grid">
+    <div class="algo-card">
+      <div class="algo-header">
+        <div class="algo-num">01</div>
+        <div>
+          <div class="algo-name">Isolation Forest</div>
+          <div class="algo-tag">Anomaly Detection</div>
+        </div>
+        <div class="algo-badge anomaly-badge" id="if-badge">--</div>
+      </div>
+      <div class="algo-section-title">How it works</div>
+      <p class="algo-text">
+        Isolation Forest isolates unusual metric combinations faster than normal
+        ones. The live model fits on the latest rolling telemetry when enough
+        samples exist.
+      </p>
+      <div class="algo-diagram">
+        <div class="tree-row"><div class="tree-node root">Root split</div></div>
+        <div class="tree-row">
+          <div class="tree-node branch">Branch A</div>
+          <div class="tree-node branch">Branch B</div>
+        </div>
+        <div class="tree-row">
+          <div class="tree-node anomaly-node">Anomaly<br><span style="font-size:9px">(isolated early)</span></div>
+          <div class="tree-node normal-node">Normal<br><span style="font-size:9px">(deep in tree)</span></div>
+          <div class="tree-node normal-node">Normal</div>
+        </div>
+      </div>
+      <div class="algo-section-title">Live output</div>
+      <div class="algo-live-block" id="if-live">Collecting data...</div>
+    </div>
+
+    <div class="algo-card">
+      <div class="algo-header">
+        <div class="algo-num">02</div>
+        <div>
+          <div class="algo-name">EWMA Forecasting</div>
+          <div class="algo-tag">CPU Time-Series Prediction</div>
+        </div>
+        <div class="algo-badge pred-badge">Live</div>
+      </div>
+      <div class="algo-section-title">How it works</div>
+      <p class="algo-text">
+        EWMA weights recent CPU readings more heavily, estimates the current
+        trend, and projects CPU usage at +10, +30, and +60 seconds.
+      </p>
+      <div class="algo-diagram ewma-diagram">
+        <div class="ewma-formula">
+          <div class="formula-line">EWMA(t) = alpha * x(t) + (1-alpha) * EWMA(t-1)</div>
+          <div class="formula-line muted" style="margin-top:6px">Forecast = latest EWMA + trend * steps</div>
+        </div>
+        <div class="ewma-steps">
+          <span class="ewma-step">+10s<br><span class="ewma-label">10 steps</span></span>
+          <span class="ewma-step">+30s<br><span class="ewma-label">30 steps</span></span>
+          <span class="ewma-step">+60s<br><span class="ewma-label">60 steps</span></span>
+        </div>
+      </div>
+      <div class="algo-section-title">Live output</div>
+      <div class="algo-live-block" id="ewma-live">Collecting data...</div>
+    </div>
+
+    <div class="algo-card">
+      <div class="algo-header">
+        <div class="algo-num">03</div>
+        <div>
+          <div class="algo-name">Random Forest</div>
+          <div class="algo-tag">Failure Risk Estimation</div>
+        </div>
+        <div class="algo-badge rf-badge" id="rf-badge">--</div>
+      </div>
+      <div class="algo-section-title">How it works</div>
+      <p class="algo-text">
+        When enough live samples are available, a small random forest estimates
+        risk from the rolling telemetry window. Until then, a robust live heuristic
+        scores CPU, memory, I/O spikes, network spikes, and anomaly strength.
+      </p>
+      <div class="algo-diagram">
+        <div class="rf-ensemble">
+          <div class="rf-tree"><div class="rf-node">Tree 1</div><div class="rf-leaf">Risk vote</div></div>
+          <div class="rf-tree"><div class="rf-node">Tree 2</div><div class="rf-leaf">Risk vote</div></div>
+          <div class="rf-tree"><div class="rf-node">Tree 3</div><div class="rf-leaf">Risk vote</div></div>
+        </div>
+        <div class="rf-avg">Average + heuristic blend</div>
+      </div>
+      <div class="algo-section-title">Live output</div>
+      <div class="algo-live-block" id="rf-live">Collecting data...</div>
+    </div>
+
+    <div class="algo-card">
+      <div class="algo-header">
+        <div class="algo-num">04</div>
+        <div>
+          <div class="algo-name">Linear Regression</div>
+          <div class="algo-tag">Health Score Trend</div>
+        </div>
+        <div class="algo-badge lr-badge" id="lr-badge">--</div>
+      </div>
+      <div class="algo-section-title">How it works</div>
+      <p class="algo-text">
+        A live health score starts from 100 and is penalized for high CPU, high
+        memory, failure risk, I/O pressure, and anomalies. Linear Regression then
+        smooths the latest trend.
+      </p>
+      <div class="algo-diagram">
+        <div class="lr-diagram">
+          <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:80px">
+            <line x1="20" y1="60" x2="180" y2="20" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <circle cx="40" cy="55" r="3" fill="#7c3aed"/>
+            <circle cx="70" cy="48" r="3" fill="#7c3aed"/>
+            <circle cx="100" cy="42" r="3" fill="#7c3aed"/>
+            <circle cx="130" cy="35" r="3" fill="#7c3aed"/>
+            <circle cx="160" cy="28" r="3" fill="#7c3aed"/>
+            <circle cx="185" cy="16" r="4" fill="#22c55e" stroke="#0a0f1e" stroke-width="1.5"/>
+            <text x="181" y="13" fill="#22c55e" font-size="8">next</text>
+          </svg>
+        </div>
+      </div>
+      <div class="algo-section-title">Live output</div>
+      <div class="algo-live-block" id="lr-live">Collecting data...</div>
+    </div>
+  </div>
+
+  <div class="metric-scores-card">
+    <div class="proc-header">
+      <h3>Per-Metric Anomaly Z-Scores (Live)</h3>
+      <span class="proc-badge">Threshold 2.5</span>
+    </div>
+    <p class="algo-text" style="margin-bottom:14px">
+      Z-score measures how far the latest metric is from its rolling historical
+      mean. A score above 2.5 is marked anomalous.
+    </p>
+    <div class="zscore-grid" id="zscore-grid"></div>
+  </div>
+</main>
+
+<footer>
+  Digital Twin of an Operating System - Live psutil telemetry with Isolation Forest, EWMA, Random Forest, and Linear Regression
+</footer>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
